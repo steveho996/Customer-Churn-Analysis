@@ -1,3 +1,4 @@
+-- Q2. How many active vs churned customers do we have?
 SELECT
     SUM(CASE WHEN "Churned" = 1 THEN 1 ELSE 0 END) AS churn_amount,
     SUM(CASE WHEN "Churned" = 0 THEN 1 ELSE 0 END) AS active_amount
