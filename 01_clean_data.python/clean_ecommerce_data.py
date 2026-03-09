@@ -111,6 +111,6 @@ print(f"   • Churn rate: {df_clean['Churned'].mean()*100:.1f}% of {len(df_clea
 print("\n" + "="*100)
 print("💾 SAVING CLEANED DATASET")
 print("="*100)
-output_path = r'D:\Datapot class\Portfolio Dataset\Ecommerce Customer Churn\ecommerce_customer_churn_final_clean.csv'
+output_path = r'D:\Datapot class\Portfolio Dataset\Ecommerce Customer Churn\ecommerce_customer_churn_cleaned.csv'
 df_clean.to_csv(output_path, index=False)
 print(f"✅ Saved to: {output_path}")
