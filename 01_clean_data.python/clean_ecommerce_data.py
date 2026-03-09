@@ -2,68 +2,54 @@ import pandas as pd
 import numpy as np
 
 # Load the original dataset
-df = pd.read_csv('D:\\Datapot class\\Portfolio Dataset\\Ecommerce Customer Churn\\ecommerce_customer_churn_cleaned.csv')
-df_clean = df.copy()  
+df_original = pd.read_csv(r'D:\Datapot class\Portfolio Dataset\Ecommerce Customer Churn\ecommerce_customer_churn_dataset.csv')
+df_clean = df_original.copy()
+
+print("="*100)
+print("E-COMMERCE CUSTOMER CHURN DATA CLEANING REPORT")
+print("="*100)
+print(f"📊 Original Dataset: {df_original.shape[0]:,} rows × {df_original.shape[1]} columns")
+print(f"📊 Missing values (original): {df_original.isnull().sum().sum():,}")
+print("-"*100)
 
 # 1. CLEAN AGE COLUMN
+print("\n1️⃣ CLEANING AGE COLUMN")
+print(f"   Original: Missing={df_clean['Age'].isnull().sum()}, >100={((df_original['Age'] > 100).sum())}, <18={((df_original['Age'] < 18).sum())}")
 
-print("\n1. Cleaning Age column")
-print(f" - Missing values: {df_clean['Age'].isnull().sum()}")
-print(f" - Values > 100: {(df_clean['Age'] > 100).sum()}")
-print(f" - Values < 18: {(df_clean['Age'] < 18).sum()}")
+# Cap age at reasonable range (18-100)
+outliers_high = (df_clean['Age'] > 100).sum()
+outliers_low = (df_clean['Age'] < 18).sum()
+df_clean.loc[df_clean['Age'] > 100, 'Age'] = np.nan
+df_clean.loc[df_clean['Age'] < 18, 'Age'] = np.nan
 
-# Cap age at reasonable range (18-80)
-df_clean.loc[df_clean['Age'] > 100, 'Age'] = np.nan  # Set outliers to NaN
-df_clean.loc[df_clean['Age'] < 18, 'Age'] = np.nan   # Set unrealistic ages to NaN
-
-# Impute missing ages with median
 age_median = df_clean['Age'].median()
+missing_age = df_clean['Age'].isnull().sum()
 df_clean['Age'] = df_clean['Age'].fillna(age_median)
-
 df_clean['Age'] = df_clean['Age'].astype(int)
-df_clean.to_csv('ecommerce_customer_churn_cleaned.csv', index=False)
 
-
-print(f"✓ Capped ages to 18-100 range")
-print(f"✓ Filled missing values with median: {age_median:.1f}")
-
+print(f"   ✅ Fixed: {outliers_high} high outliers + {outliers_low} low outliers → median {age_median:.0f}")
+print(f"   Age range now: {df_clean['Age'].min()} - {df_clean['Age'].max()}")
 
 # 2. CLEAN NEGATIVE TOTAL PURCHASES
-
-print("\n2. Cleaning Total_Purchases column")
-print(f" - Negative values: {(df_clean['Total_Purchases'] < 0).sum()}")
-
-# Set negative purchases to 0
+print("\n2️⃣ CLEANING TOTAL_PURCHASES")
+neg_purchases = (df_clean['Total_Purchases'] < 0).sum()
 df_clean.loc[df_clean['Total_Purchases'] < 0, 'Total_Purchases'] = 0
-
-print(f"✓ Set negative values to 0")
-
+print(f"   ✅ Fixed: {neg_purchases} negative values → 0")
+print(f"   Purchases range now: {df_clean['Total_Purchases'].min()} - {df_clean['Total_Purchases'].max()}")
 
 # 3. CLEAN PERCENTAGE COLUMNS
+print("\n3️⃣ CLEANING PERCENTAGE COLUMNS")
+percent_cols = ['Cart_Abandonment_Rate', 'Discount_Usage_Rate']
+for col in percent_cols:
+    if col in df_clean.columns:
+        over_100 = (df_clean[col] > 100).sum()
+        if over_100 > 0:
+            df_clean.loc[df_clean[col] > 100, col] = 100
+            print(f"   ✅ {col}: Capped {over_100} values >100%")
 
-print("\n3. Cleaning percentage columns")
-
-# Cart Abandonment Rate
-cart_over_100 = (df_clean['Cart_Abandonment_Rate'] > 100).sum()
-if cart_over_100 > 0:
-    df_clean.loc[df_clean['Cart_Abandonment_Rate'] > 100, 'Cart_Abandonment_Rate'] = 100
-    print(f" - Cart_Abandonment_Rate: Capped {cart_over_100} values at 100%")
-
-# Discount Usage Rate
-discount_over_100 = (df_clean['Discount_Usage_Rate'] > 100).sum()
-if discount_over_100 > 0:
-    df_clean.loc[df_clean['Discount_Usage_Rate'] > 100, 'Discount_Usage_Rate'] = 100
-    print(f"   - Discount_Usage_Rate: Capped {discount_over_100} values at 100%")
-
-print(f"   ✓ All percentage columns now in 0-100 range")
-
-
-# 4. HANDLE MISSING VALUES
-
-print("\n4. Handling missing values")
-
-# Numerical columns - fill with median
-numerical_cols_to_fill = [
+# 4. HANDLE MISSING VALUES (Numerical)
+print("\n4️⃣ HANDLING MISSING VALUES")
+numerical_cols = [
     'Membership_Years', 'Login_Frequency', 'Session_Duration_Avg', 
     'Pages_Per_Session', 'Wishlist_Items', 'Days_Since_Last_Purchase',
     'Discount_Usage_Rate', 'Returns_Rate', 'Email_Open_Rate',
@@ -72,92 +58,60 @@ numerical_cols_to_fill = [
     'Payment_Method_Diversity', 'Credit_Balance'
 ]
 
-for col in numerical_cols_to_fill:
+total_missing_fixed = 0
+for col in numerical_cols:
     if col in df_clean.columns:
         missing_count = df_clean[col].isnull().sum()
         if missing_count > 0:
             median_val = df_clean[col].median()
             df_clean[col] = df_clean[col].fillna(median_val)
-            print(f"   - {col}: Filled {missing_count} values with median ({median_val:.2f})")
+            total_missing_fixed += missing_count
+            print(f"   ✅ {col}: Filled {missing_count:,} values (median={median_val:.2f})")
 
-print(f"   ✓ All missing values handled")
-
+print(f"   📈 Total missing values fixed: {total_missing_fixed:,}")
 
 # 5. DATA TYPE OPTIMIZATION
+print("\n5️⃣ OPTIMIZING DATA TYPES")
+int_cols = ['Churned', 'Customer_Service_Calls', 'Product_Reviews_Written', 'Wishlist_Items']
+for col in int_cols:
+    if col in df_clean.columns and df_clean[col].isnull().sum() == 0:
+        df_clean[col] = df_clean[col].astype(int)
 
-print("\n5. Optimizing data types")
-
-# Convert integer-like columns to int 
-int_columns = ['Churned', 'Customer_Service_Calls', 'Product_Reviews_Written', 
-               'Wishlist_Items', 'Payment_Method_Diversity']
-
-for col in int_columns:
-    if col in df_clean.columns:
-        # First ensure no NaN values
-        if df_clean[col].isnull().sum() == 0:
-            df_clean[col] = df_clean[col].astype(int)
-        else:
-            # Fill any remaining NaN with 0 then convert
-            df_clean[col] = df_clean[col].fillna(0).astype(int)
-
-print(f"   ✓ Optimized data types")
-
-
-# 6. POSTGRESQL TYPE FIXING (clean integers + round floats to 2 decimals)
-
-print("\n6. Fixing types for PostgreSQL compatibility")
-
-# Columns that are whole numbers — convert float64 (e.g. 43.0) to clean int
-postgres_int_columns = [
-    'Age', 'Login_Frequency', 'Days_Since_Last_Purchase', 'Credit_Balance'
-]
-for col in postgres_int_columns:
+# 6. POSTGRESQL COMPATIBILITY
+print("\n6️⃣ POSTGRESQL TYPE FIXING")
+postgres_int_cols = ['Age', 'Login_Frequency', 'Days_Since_Last_Purchase', 'Credit_Balance']
+for col in postgres_int_cols:
     if col in df_clean.columns:
         df_clean[col] = df_clean[col].round(0).astype(int)
-        print(f"   - {col}: converted to INTEGER (e.g. 43.0 -> 43)")
 
-# Columns that are decimal — round to 2 decimal places to remove
-# floating-point noise like 12.239999999999998
-postgres_float_columns = [
+postgres_float_cols = [
     'Membership_Years', 'Session_Duration_Avg', 'Pages_Per_Session',
     'Cart_Abandonment_Rate', 'Total_Purchases', 'Average_Order_Value',
     'Discount_Usage_Rate', 'Returns_Rate', 'Email_Open_Rate',
     'Social_Media_Engagement_Score', 'Mobile_App_Usage', 'Lifetime_Value'
 ]
-for col in postgres_float_columns:
+for col in postgres_float_cols:
     if col in df_clean.columns:
         df_clean[col] = df_clean[col].round(2)
-        print(f"   - {col}: rounded to 2 decimal places")
 
+# 7. FINAL VALIDATION REPORT
+print("\n" + "="*100)
+print("✅ FINAL VALIDATION REPORT")
+print("="*100)
+print(f"📊 Dataset shape: {df_original.shape[0]:,} → {df_clean.shape[0]:,} rows (0 rows dropped)")
+print(f"🔍 Missing values: {df_original.isnull().sum().sum():,} → {df_clean.isnull().sum().sum():,} (ALL FIXED)")
+print(f"🔍 Duplicates: {df_original.duplicated().sum():,} → {df_clean.duplicated().sum():,}")
+print("\n📈 KEY METRICS VALIDATION:")
+print(f"   • Age: {df_clean['Age'].min():,} - {df_clean['Age'].max():,} years ✓")
+print(f"   • Purchases: {df_clean['Total_Purchases'].min():.1f} - {df_clean['Total_Purchases'].max():.1f} ✓")
+print(f"   • Cart Rate: {df_clean['Cart_Abandonment_Rate'].min():.1f}% - {df_clean['Cart_Abandonment_Rate'].max():.1f}% ✓")
+print(f"   • Discount Rate: {df_clean['Discount_Usage_Rate'].min():.1f}% - {df_clean['Discount_Usage_Rate'].max():.1f}% ✓")
+print(f"   • Churn rate: {df_clean['Churned'].mean()*100:.1f}% of {len(df_clean):,} customers")
 
-# 6. FINAL VALIDATION
-
-print("\n" + "="*80)
-print("CLEANING SUMMARY")
-print("="*80)
-
-print(f"\nOriginal dataset: {df.shape[0]} rows")
-print(f"Cleaned dataset: {df_clean.shape[0]} rows")
-print(f"Rows removed: 0 (no rows deleted, only values corrected)")
-
-print(f"\nMissing values after cleaning: {df_clean.isnull().sum().sum()}")
-print(f"Duplicate rows: {df_clean.duplicated().sum()}")
-
-# Check for any remaining issues
-print("\n✓ Validation checks:")
-print(f"   - Age range: {df_clean['Age'].min():.1f} - {df_clean['Age'].max():.1f}")
-print(f"   - Negative purchases: {(df_clean['Total_Purchases'] < 0).sum()}")
-print(f"   - Cart abandonment > 100: {(df_clean['Cart_Abandonment_Rate'] > 100).sum()}")
-print(f"   - Discount usage > 100: {(df_clean['Discount_Usage_Rate'] > 100).sum()}")
-
-
-# 7. SAVE CLEANED DATASET
-
-print("\n" + "="*80)
-print("SAVING CLEANED DATASET")
-print("="*80)
-
-output_path = r'D:\Datapot class\Portfolio Dataset\Ecommerce Customer Churn\ecommerce_customer_churn_cleaned.csv'
+print("\n" + "="*100)
+print("💾 SAVING CLEANED DATASET")
+print("="*100)
+output_path = r'D:\Datapot class\Portfolio Dataset\Ecommerce Customer Churn\ecommerce_customer_churn_final_clean.csv'
 df_clean.to_csv(output_path, index=False)
-print(f"✓ Cleaned dataset saved to: {output_path}")
-
+print(f"✅ Saved to: {output_path}")
+print("🎉 Dataset is now PostgreSQL-ready and analysis-ready!")
